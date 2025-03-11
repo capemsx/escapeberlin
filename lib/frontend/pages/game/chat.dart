@@ -3,7 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:escapeberlin/backend/types/chatmessage.dart';
 import 'package:escapeberlin/backend/types/player.dart';
 import 'package:escapeberlin/backend/types/role.dart';
+import 'package:escapeberlin/backend/types/roundobjective.dart';
 import 'package:escapeberlin/frontend/widgets/chat/inventory.dart';
+import 'package:escapeberlin/frontend/widgets/chat/shared_documents_view.dart';
 import 'package:escapeberlin/globals.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -27,6 +29,7 @@ class _ChatPageState extends State<ChatPage> {
 
   // Runden-Variablen
   int _currentRound = 1;
+  RoundObjective? _currentObjective;
   int _remainingSeconds = 120; // 2 Minuten
   Timer? _countdownTimer;
   StreamSubscription? _roundSubscription;
@@ -48,10 +51,10 @@ class _ChatPageState extends State<ChatPage> {
     // In der initState-Methode von _ChatPageState ergänzen:
 
 // Listener für Rundenübergänge
-roundProvider.roundStream.listen((newRound) {
-  // Dokument-Sharing-Status zurücksetzen
-  documentProvider.resetForNewRound(newRound);
-});
+    roundProvider.roundStream.listen((newRound) {
+      // Dokument-Sharing-Status zurücksetzen
+      documentProvider.resetForNewRound(newRound);
+    });
   }
 
 // Neue Methode zur Initialisierung des Rundensystems
@@ -70,6 +73,7 @@ roundProvider.roundStream.listen((newRound) {
         print("Neue Runde erhalten: $round");
         setState(() {
           _currentRound = round;
+          _currentObjective = documentRepo.getRoundObjective(round);
         });
       });
 
@@ -208,6 +212,101 @@ roundProvider.roundStream.listen((newRound) {
       _messageController.clear();
     }
   }
+
+  Widget _buildObjectiveDisplay() {
+  final minutes = _remainingSeconds ~/ 60;
+  final seconds = _remainingSeconds % 60;
+  final timeStr = '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+
+  // Farbe je nach verbleibender Zeit
+  Color timerColor;
+  if (_remainingSeconds > 30) {
+    timerColor = Colors.green;
+  } else if (_remainingSeconds > 10) {
+    timerColor = Colors.orange;
+  } else {
+    timerColor = Colors.red;
+  }
+
+  return AnimatedContainer(
+    duration: const Duration(milliseconds: 800),
+    curve: Curves.easeInOut,
+    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: backgroundColor.withOpacity(0.2),
+      border: Border.all(color: Colors.amber),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: _currentObjective != null
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.flag, color: Colors.amber, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'RUNDENZIEL (Runde $_currentRound)',
+                        style: TextStyle(
+                          color: Colors.amber,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Timer als Trailing-Element
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: backgroundColor.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: timerColor),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.timer,
+                          color: timerColor,
+                          size: 12,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          timeStr,
+                          style: TextStyle(
+                            color: timerColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _currentObjective?.description ?? 'Kein Ziel definiert',
+                style: TextStyle(
+                  color: foregroundColor,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          )
+        : const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+              strokeWidth: 2,
+            ),
+          ),
+  );
+}
 
   Widget _buildMessageInput() {
     return Column(
@@ -436,64 +535,7 @@ roundProvider.roundStream.listen((newRound) {
     );
   }
 
-  // Timer-Widget für die Rundenanzeige
-  Widget _buildRoundTimer() {
-    final minutes = _remainingSeconds ~/ 60;
-    final seconds = _remainingSeconds % 60;
-    final timeStr =
-        '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-
-    // Farbe je nach verbleibender Zeit
-    Color timerColor;
-    if (_remainingSeconds > 30) {
-      timerColor = Colors.green;
-    } else if (_remainingSeconds > 10) {
-      timerColor = Colors.orange;
-    } else {
-      timerColor = Colors.red;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-      decoration: BoxDecoration(
-        color: backgroundColor.withOpacity(0.2),
-        border: Border.all(color: foregroundColor),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          Text(
-            'RUNDE $_currentRound',
-            style: TextStyle(
-              color: foregroundColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.timer,
-                color: timerColor,
-                size: 18,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                timeStr,
-                style: TextStyle(
-                  color: timerColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -505,12 +547,15 @@ roundProvider.roundStream.listen((newRound) {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              "VERSCHLÜSSELTE KOMMUNIKATION",
-              style: Theme.of(context).textTheme.headlineSmall,
+            Icon(
+              Icons.lock_outline,
+              color: foregroundColor,
             ),
             const SizedBox(width: 10),
-            _buildRoundTimer(),
+            Text(
+              "VERSCHLÜSSELTE KOMMUNIKATION",
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ],
         ),
         centerTitle: true,
@@ -518,6 +563,7 @@ roundProvider.roundStream.listen((newRound) {
       ),
       body: Column(
         children: [
+          _buildObjectiveDisplay(),
           // Chat-Nachrichten
           Expanded(
             child: Container(
@@ -555,8 +601,22 @@ roundProvider.roundStream.listen((newRound) {
             ),
           ),
 
-          // Nachrichteneingabe mit Empfängerauswahl
+          // Geteilte Dokumente anzeigen
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: backgroundColor.withOpacity(0.8),
+              border: Border.all(color: foregroundColor, width: 2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            height: 150, // Höhe anpassen je nach Bedarf
+            child: SharedDocumentsView(currentRound: _currentRound),
+          ),
+
+          // Inventar
           _buildInventory(),
+
+          // Nachrichteneingabe mit Empfängerauswahl
           _buildMessageInput(),
         ],
       ),

@@ -4,6 +4,7 @@ import 'package:escapeberlin/backend/providers/chatprovider.dart';
 import 'package:escapeberlin/backend/providers/communicationprovider.dart';
 import 'package:escapeberlin/backend/providers/documentprovider.dart';
 import 'package:escapeberlin/backend/providers/roundprovider.dart';
+import 'package:escapeberlin/backend/repository/documentcontentrepository.dart';
 import 'package:flutter/foundation.dart';
 
 
@@ -14,5 +15,6 @@ CommunicationProvider communicationProvider = CommunicationProvider();
 ChatProvider chatProvider = ChatProvider();
 final roundProvider = RoundProvider();
 final documentProvider = DocumentProvider();
+final documentRepo = DocumentContentRepository();
 
 ValueNotifier<int> gamePageIndex = ValueNotifier(0);
