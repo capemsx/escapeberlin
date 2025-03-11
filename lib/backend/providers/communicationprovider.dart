@@ -8,6 +8,10 @@ class CommunicationProvider {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _playerCountController = StreamController<int>.broadcast();
   Stream<int> get playerCountStream => _playerCountController.stream;
+
+  final StreamController<List<String>> _playerListController = StreamController<List<String>>.broadcast();
+Stream<List<String>> get playerListStream => _playerListController.stream;
+
   Player? currentPlayer;
 
   Future<void> createHideout(String hideoutId, String playerName) async {
@@ -62,36 +66,44 @@ class CommunicationProvider {
   }
 
   Future<void> joinOrCreateHideout(String hideoutId, String playerName) async {
-    final hideoutDoc = _firestore.collection('hideouts').doc(hideoutId);
-    final hideoutData = await hideoutDoc.get();
+  final hideoutDoc = _firestore.collection('hideouts').doc(hideoutId);
+  final hideoutData = await hideoutDoc.get();
 
-    if (hideoutData.exists) {
-      await joinHideout(hideoutId, playerName);
-    } else {
-      await createHideout(hideoutId, playerName);
-    }
-
-    listenToPlayerChanges(hideoutId);
-    return;
+  if (hideoutData.exists) {
+    await joinHideout(hideoutId, playerName);
+  } else {
+    await createHideout(hideoutId, playerName);
   }
+
+  listenToPlayerChanges(hideoutId);
+  return;
+}
 
   void listenToPlayerChanges(String hideoutId) {
-    final hideoutDoc = _firestore.collection('hideouts').doc(hideoutId);
-    hideoutDoc.snapshots().listen((snapshot) {
-      if (snapshot.exists) {
-        final players = List<Map<String, dynamic>>.from(snapshot.data()?['players']);
-        final currentPlayerData = players.firstWhere((player) => player['id'] == currentPlayer?.id, orElse: () => {});
-        if (currentPlayerData.isNotEmpty) {
-          final newRole = Role.values.firstWhere((role) => role.name == currentPlayerData['role']);
-          currentPlayer?.updateRole(newRole);
-          print('New role: ${currentPlayer?.role}');
-        }
+  final hideoutDoc = _firestore.collection('hideouts').doc(hideoutId);
+  hideoutDoc.snapshots().listen((snapshot) {
+    if (snapshot.exists) {
+      final players =
+          List<Map<String, dynamic>>.from(snapshot.data()?['players']);
+      final currentPlayerData = players.firstWhere(
+          (player) => player['id'] == currentPlayer?.id,
+          orElse: () => {});
+      if (currentPlayerData.isNotEmpty) {
+        final newRole = Role.values
+            .firstWhere((role) => role.name == currentPlayerData['role']);
+        currentPlayer?.updateRole(newRole);
+        print('New role: ${currentPlayer?.role}');
       }
-    });
-  }
+      // Aktualisiere die Spieler-Liste
+      final playerNames = players.map((player) => player['name'] as String).toList();
+      updatePlayerList(playerNames);
+    }
+  });
+}
 
   Future<bool> isHideoutFull(String hideoutId) async {
-    final hideoutDoc = await _firestore.collection('hideouts').doc(hideoutId).get();
+    final hideoutDoc =
+        await _firestore.collection('hideouts').doc(hideoutId).get();
     if (hideoutDoc.exists) {
       final playerCount = hideoutDoc.data()?['playerCount'] ?? 0;
       return playerCount >= 5;
@@ -100,12 +112,20 @@ class CommunicationProvider {
   }
 
   void listenToPlayerCount(String hideoutId) {
-    _firestore.collection('hideouts').doc(hideoutId).snapshots().listen((snapshot) {
+    _firestore
+        .collection('hideouts')
+        .doc(hideoutId)
+        .snapshots()
+        .listen((snapshot) {
       if (snapshot.exists) {
         _playerCountController.add(snapshot.data()?['playerCount'] ?? 1);
       }
     });
   }
+
+  void updatePlayerList(List<String> newPlayers) {
+  _playerListController.add(newPlayers);
+}
 
   void leaveHideout(String hideoutId, String playerName) async {
     final hideoutDoc = _firestore.collection('hideouts').doc(hideoutId);

@@ -1,6 +1,5 @@
 import 'dart:async';
-
-import 'package:escapeberlin/backend/types/gamepage.dart';
+import 'package:escapeberlin/frontend/pages/game/chat.dart';
 import 'package:escapeberlin/frontend/pages/game/introduction.dart';
 import 'package:escapeberlin/frontend/pages/game/rolereveal.dart';
 import 'package:escapeberlin/globals.dart';
@@ -17,29 +16,23 @@ class GameWrapper extends StatefulWidget {
 }
 
 class GameWrapperState extends State<GameWrapper> {
-  List<GamePage> pages = [
-    
+  List<Widget> pages = [
+    IntroductionPage(),
+    RoleRevealPage(),
+    ChatPage(),
   ];
-  int pageIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    pages = [IntroductionPage(onFinished: _nextPage),
-    RoleRevealPage(onFinished: _nextPage)];
   }
 
-  void _nextPage() {
-    setState(() {
-      pageIndex = (pageIndex + 1) % pages.length;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: pages[pageIndex],
+    return ValueListenableBuilder(valueListenable: gamePageIndex, builder: (ctx, val, child) {
+        return pages[gamePageIndex.value];
+      }
     );
   }
 }

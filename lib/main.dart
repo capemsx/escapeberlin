@@ -1,3 +1,5 @@
+import 'package:escapeberlin/frontend/pages/game/chat.dart';
+import 'package:escapeberlin/frontend/pages/game/rolereveal.dart';
 import 'package:escapeberlin/frontend/pages/gamewrapper.dart';
 import 'package:escapeberlin/frontend/pages/lobby.dart';
 import 'package:escapeberlin/globals.dart';

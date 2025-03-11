@@ -1,97 +1,78 @@
-import 'package:escapeberlin/backend/types/gamepage.dart';
 import 'package:flutter/material.dart';
 import 'package:escapeberlin/globals.dart';
 import 'package:escapeberlin/backend/types/role.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 
-class RoleRevealPage extends StatefulWidget implements GamePage {
-  final VoidCallback onFinished;
-
-  const RoleRevealPage({super.key, required this.onFinished});
+class RoleRevealPage extends StatefulWidget {
+  const RoleRevealPage({super.key});
 
   @override
   State<RoleRevealPage> createState() => RoleRevealState();
 
-  @override
-  bool isFinished() {
-    return RoleRevealState().isFinished();
-  }
 }
 
-class RoleRevealState extends State<RoleRevealPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  bool _isFinished = false;
-
-  bool isFinished() {
-    return _isFinished;
-  }
+class RoleRevealState extends State<RoleRevealPage> {
+  bool roleVisible = false;
+  bool roleDescriptionVisible = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..forward().then((_) {
-      setState(() {
-        _isFinished = true;
-      });
-      widget.onFinished();
-    });
-
-    _animation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    );
+    startAnimation();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void startAnimation() async {
+    await Future.delayed(Duration(seconds: 1));
+    setState(() {
+      roleVisible = true;
+    });
+    await Future.delayed(Duration(seconds: 3));
+    setState(() {
+      roleDescriptionVisible = true;
+    });
+    await Future.delayed(Duration(seconds: 5));
+    gamePageIndex.value++;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Colors.black,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ScaleTransition(
-              scale: _animation,
-              child: DefaultTextStyle(
-                style: const TextStyle(
-                  fontSize: 50,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-                child: AnimatedTextKit(
-                  animatedTexts: [
-                    ScaleAnimatedText(communicationProvider.currentPlayer!.role.name),
-                  ],
-                  isRepeatingAnimation: false,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedOpacity(
+                opacity: roleVisible ? 1 : 0,
+                duration: Duration(milliseconds: 1250),
+                curve: Curves.easeOut,
+                child: AnimatedScale(
+                  scale: roleVisible ? 1 : 0,
+                  duration: Duration(milliseconds: 2500),
+                  curve: Curves.easeOut,
+                  child: Text(communicationProvider.currentPlayer!.role.name, style: TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.w800),)),
+              ),
+              const SizedBox(height: 10),
+              AnimatedOpacity(
+                opacity: roleDescriptionVisible ? 1 : 0,
+                curve: Curves.easeOut,
+                duration: Duration(milliseconds: 1250),
+                child: Text(
+                  _getRoleDescription(communicationProvider.currentPlayer!.role),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 22,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            FadeTransition(
-              opacity: _animation,
-              child: Text(
-                _getRoleDescription(communicationProvider.currentPlayer!.role),
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 20,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
+              ]
+          ),
+        )
+      )
+
     );
   }
 

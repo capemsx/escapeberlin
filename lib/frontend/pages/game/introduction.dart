@@ -1,5 +1,4 @@
 import 'package:dot_matrix_text/dot_matrix_text.dart';
-import 'package:escapeberlin/backend/types/gamepage.dart';
 import 'package:escapeberlin/globals.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
@@ -7,18 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 
-class IntroductionPage extends StatefulWidget implements GamePage {
-  final VoidCallback onFinished;
+class IntroductionPage extends StatefulWidget {
 
-  const IntroductionPage({super.key, required this.onFinished});
+  const IntroductionPage({super.key});
 
   @override
   State<IntroductionPage> createState() => IntroductionPageState();
-
-  @override
-  bool isFinished() {
-    return IntroductionPageState().isFinished();
-  }
 }
 
 class IntroductionPageState extends State<IntroductionPage>  {
@@ -27,16 +20,11 @@ class IntroductionPageState extends State<IntroductionPage>  {
   final List<String> monologue = [
     "Berlin, 1984.\nDie Stadt ist durch die Mauer geteilt.",
     "Eure Mission:\nFindet die geheimen Dokumente und flieht.",
-    "Die Kommunikation nur über verschlüsselten Messenger möglich.",
-    "Vorsicht, es gibt einen Spitzel in euren Reihen."
+    "Die Kommunikation ist nur über einen verschlüsselten Messenger möglich.",
+    "Vorsicht, es gibt einen Spitzel in euren Reihen.",
     "Viel Glück, ihr werdet es brauchen.",
     ""
 ];
-
-bool isFinished() {
-    return _isFinished;
-  }
-
 
   
 
@@ -70,9 +58,8 @@ bool isFinished() {
             stopPauseOnTap: true,
             onFinished: () {
               setState(() {
-                _isFinished = true;
+                gamePageIndex.value++;
               });
-              widget.onFinished();
             },
           ),
         ),
