@@ -1,171 +1,120 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:escapeberlin/backend/types/chatmessage.dart';
-import 'package:escapeberlin/backend/providers/communicationprovider.dart';
+import 'package:flutter/material.dart';
 
-class ChatProvider {
+class ChatProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  String _username = '';
-  String _currentHideout = '';
-
-  // Singleton-Muster für den ChatProvider
+  
+  // Private Felder für Benutzername und Hideout-ID
+  String? _username;
+  String? _hideout;
+  
+  // Singleton-Muster für ChatProvider
   static final ChatProvider _instance = ChatProvider._internal();
   factory ChatProvider() => _instance;
   ChatProvider._internal();
 
-  String getHideout() {
-  return _currentHideout;
-}
+  // Getter für username und hideout
+  String getUsername() => _username ?? 'Unbekannt';
+  String getHideout() => _hideout ?? '';
 
-  // Username setzen
+  // Setter für username und hideout
   void setUsername(String username) {
     _username = username;
+    notifyListeners();
   }
 
-  // Benutzernamen abrufen
-  String getUsername() {
-    return _username;
+  void setHideout(String hideout) {
+    _hideout = hideout;
+    notifyListeners();
   }
 
-  // Aktuelles Versteck (Hideout) setzen
-  void setHideout(String hideoutId) {
-    _currentHideout = hideoutId;
-  }
-
-  // Einem Chat beitreten
-  void joinChat(String hideoutId) {
-    if (_username.isEmpty) {
-      throw Exception('Benutzername muss gesetzt sein, bevor ein Chat betreten werden kann');
-    }
-    _currentHideout = hideoutId;
-  }
-
-  // Nachricht senden
+  // Methode zum Senden einer Nachricht
   Future<void> sendMessage(String message) async {
-    if (_username.isEmpty || _currentHideout.isEmpty) {
-      throw Exception('Benutzername und Hideout müssen gesetzt sein, um Nachrichten zu senden');
+    if (_username == null || _hideout == null) {
+      return;
     }
 
-    if (message.trim().isEmpty) return;
+    final chatMessage = ChatMessage(
+      username: _username!,
+      message: message,
+      timestamp: DateTime.now(),
+    );
 
-    final chatMessage = {
-      'username': _username,
-      'message': message.trim(),
-      'timestamp': DateTime.now().toIso8601String(),
-    };
-
+    // Nachricht in Firestore speichern
     await _firestore
         .collection('lobbies')
-        .doc(_currentHideout)
+        .doc(_hideout)
         .collection('messages')
-        .add(chatMessage);
+        .add(chatMessage.toMap());
   }
 
-  Future<void> sendWhisperMessage(String message, String recipientUsername) async {
-  if (_username.isEmpty || _currentHideout.isEmpty) {
-    throw Exception('Benutzername und Hideout müssen gesetzt sein, um Nachrichten zu senden');
+  // Methode zum Senden einer Flüsternachricht
+  Future<void> sendWhisperMessage(String message, String recipient) async {
+    if (_username == null || _hideout == null) {
+      return;
+    }
+
+    final chatMessage = ChatMessage(
+      username: _username!,
+      message: message,
+      recipient: recipient,
+      timestamp: DateTime.now(),
+    );
+
+    // Nachricht in Firestore speichern
+    await _firestore
+        .collection('lobbies')
+        .doc(_hideout)
+        .collection('messages')
+        .add(chatMessage.toMap());
   }
 
-  if (message.trim().isEmpty) return;
-
-  final chatMessage = {
-    'username': _username,
-    'message': message.trim(),
-    'timestamp': DateTime.now().toIso8601String(),
-    'recipient': recipientUsername,
-  };
-
-  await _firestore
-      .collection('lobbies')
-      .doc(_currentHideout)
-      .collection('messages')
-      .add(chatMessage);
-}
-
-  // Systemnachricht senden
+  // Methode zum Senden einer Systemnachricht
   Future<void> sendSystemMessage(String message) async {
-    if (_currentHideout.isEmpty) {
-      throw Exception('Hideout muss gesetzt sein, um Systemnachrichten zu senden');
+    if (_hideout == null) {
+      return;
     }
 
-    if (message.trim().isEmpty) return;
+    final chatMessage = ChatMessage(
+      username: "System",
+      message: message,
+      timestamp: DateTime.now(),
+      isSystem: true,
+    );
 
-    final chatMessage = {
-      'username': 'System',
-      'message': message.trim(),
-      'timestamp': DateTime.now().toIso8601String(),
-    };
-
+    // Systemnachricht in Firestore speichern
     await _firestore
         .collection('lobbies')
-        .doc(_currentHideout)
+        .doc(_hideout)
         .collection('messages')
-        .add(chatMessage);
+        .add(chatMessage.toMap());
   }
 
-  // Stream mit allen Nachrichten
-  Stream<List<ChatMessage>> getMessages() {
-    if (_currentHideout.isEmpty) {
-      // Leeren Stream zurückgeben, wenn kein Hideout gesetzt ist
-      return Stream.value([]);
-    }
-
-    return _firestore
-        .collection('lobbies')
-        .doc(_currentHideout)
-        .collection('messages')
-        .orderBy('timestamp')
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        return ChatMessage(
-          username: data['username'] ?? 'Unbekannt',
-          message: data['message'] ?? '',
-          timestamp: DateTime.parse(data['timestamp']),
-        );
-      }).toList();
-    });
-  }
-
-  // Einzeln ankommende Nachrichten
+  // Stream für eingehende Nachrichten
   Stream<ChatMessage> onMessage() {
-    if (_currentHideout.isEmpty) {
-      // Leeren Stream zurückgeben, wenn kein Hideout gesetzt ist
+    if (_hideout == null) {
+      // Wenn kein Hideout festgelegt ist, gib einen leeren Stream zurück
       return Stream.empty();
     }
 
     return _firestore
         .collection('lobbies')
-        .doc(_currentHideout)
+        .doc(_hideout)
         .collection('messages')
-        .orderBy('timestamp')
+        .orderBy('timestamp', descending: false)
         .snapshots()
         .expand((snapshot) {
+          // Bei der ersten Abfrage alle vorhandenen Nachrichten zurückgeben
+          if (snapshot.metadata.isFromCache && snapshot.docChanges.isEmpty) {
+            return snapshot.docs.map((doc) => ChatMessage.fromMap(doc.data()));
+          }
+          
+          // Bei Updates nur die neuen/geänderten Nachrichten zurückgeben
           return snapshot.docChanges
               .where((change) => change.type == DocumentChangeType.added)
-              .map((change) {
-            final data = change.doc.data()!;
-            return ChatMessage(
-              username: data['username'] ?? 'Unbekannt',
-              message: data['message'] ?? '',
-              timestamp: DateTime.parse(data['timestamp']),
-              recipient: data['recipient'], // Hier wird das recipient-Feld hinzugefügt
-            );
-          }).toList();
+              .map((change) => ChatMessage.fromMap(change.doc.data()!));
         });
   }
-
-  // Ressourcen freigeben
-  void dispose() {
-    _currentHideout = '';
-    // Username behalten wir, falls der Nutzer in einen anderen Chat wechselt
-  }
-
-  // ChatPage benötigt aktuellen Benutzernamen
-  String getCurrentUsername() {
-    return _username;
-  }
 }
-
-// Globale Instanz für einfachen Zugriff
-final chatProvider = ChatProvider();

@@ -1,0 +1,4 @@
+enum GamePhase {
+  playing,
+  voting
+}

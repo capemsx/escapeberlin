@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:escapeberlin/backend/types/gamephase.dart';
 import 'package:escapeberlin/globals.dart';
 
-enum GamePhase {
-  playing,
-  voting
-}
+
 
 class RoundProvider {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -147,72 +145,41 @@ class RoundProvider {
     _phaseController.add(_currentPhase);
     _roundEndTimeController.add(_roundEndTime!);
     _startVotingTimer(votingDuration);
+    
   }
   
   // Zur nächsten Runde wechseln
   Future<void> _advanceToNextRound(String hideoutId) async {
-    // Abstimmungsergebnis auswerten
-    await _evaluateVotes(hideoutId);
-    
-    _currentRound++;
-    _currentPhase = GamePhase.playing;
-    _roundEndTime = DateTime.now().add(Duration(seconds: roundDuration));
-    
-    // In Firestore speichern
-    await _firestore.collection('hideouts').doc(hideoutId).update({
-      'currentRound': _currentRound,
-      'currentPhase': 'playing',
-      'roundEndTime': _roundEndTime!.millisecondsSinceEpoch,
-    });
-    
-    _roundController.add(_currentRound);
-    _phaseController.add(_currentPhase);
-    _roundEndTimeController.add(_roundEndTime!);
-    _startRoundTimer(roundDuration);
-  }
-  
-  // Stimmen auswerten und den Spieler mit den meisten Stimmen entfernen
-  Future<void> _evaluateVotes(String hideoutId) async {
-    final hideoutDoc = await _firestore.collection('hideouts').doc(hideoutId).get();
-    if (!hideoutDoc.exists) return;
-    
-    final votes = Map<String, dynamic>.from(hideoutDoc.data()?['votes'] ?? {});
-    if (votes.isEmpty) return;
-    
-    // Stimmen zählen
-    final Map<String, int> voteCounts = {};
-    votes.forEach((voterId, votedFor) {
-      if (votedFor is String && votedFor.isNotEmpty) {
-        voteCounts[votedFor] = (voteCounts[votedFor] ?? 0) + 1;
-      }
-    });
-    
-    if (voteCounts.isEmpty) return;
-    
-    // Spieler mit den meisten Stimmen finden
-    String? playerToRemove;
-    int maxVotes = 0;
-    
-    voteCounts.forEach((player, count) {
-      if (count > maxVotes) {
-        maxVotes = count;
-        playerToRemove = player;
-      }
-    });
-    
-    if (playerToRemove != null) {
-      // Spieler entfernen
-      final players = List<Map<String, dynamic>>.from(hideoutDoc.data()?['players'] ?? []);
-      players.removeWhere((player) => player['name'] == playerToRemove);
+    try {
+      // Abstimmungsergebnis auswerten
+      await votingProvider.endVoting(hideoutId, _currentRound);
       
-      // Chat-Nachricht über die Abstimmung senden
-      await _sendSystemMessage(hideoutId, "Spieler $playerToRemove wurde aus dem Spiel entfernt.");
+      _currentRound++;
+      _currentPhase = GamePhase.playing;
+      _roundEndTime = DateTime.now().add(Duration(seconds: roundDuration));
       
-      // Firestore aktualisieren
+      print("Wechsel zu Runde $_currentRound");
+      
+      // In Firestore speichern
       await _firestore.collection('hideouts').doc(hideoutId).update({
-        'players': players,
-        'playerCount': players.length,
+        'currentRound': _currentRound,
+        'currentPhase': 'playing',
+        'roundEndTime': _roundEndTime!.millisecondsSinceEpoch,
       });
+      
+      // Streams aktualisieren
+      _roundController.add(_currentRound);
+      _phaseController.add(_currentPhase);
+      _roundEndTimeController.add(_roundEndTime!);
+      
+      // Benachrichtigung im Chat
+      await chatProvider.sendSystemMessage("Runde $_currentRound beginnt jetzt!");
+      
+      // Timer starten
+      _startRoundTimer(roundDuration);
+      
+    } catch (e) {
+      print("Fehler beim Wechsel zur nächsten Runde: $e");
     }
   }
   
@@ -263,14 +230,16 @@ class RoundProvider {
   
   // Timer für die Abstimmungsphase starten
   void _startVotingTimer(int seconds) {
-    _cancelRoundTimer();
-    _roundTimer = Timer(Duration(seconds: seconds), () {
-      // Diese Logik wird nur beim Host ausgeführt
-      if (_isHost()) {
-        _advanceToNextRound(_getCurrentHideoutId());
-      }
-    });
-  }
+  _cancelRoundTimer();
+  _roundTimer = Timer(Duration(seconds: seconds), () {
+    // Diese Logik wird nur beim Host ausgeführt
+    if (_isHost()) {
+      // Erst Abstimmung beenden
+      votingProvider.endVoting(_getCurrentHideoutId(), _currentRound)
+        .then((_) => _advanceToNextRound(_getCurrentHideoutId()));
+    }
+  });
+}
   
   // Laufenden Timer abbrechen
   void _cancelRoundTimer() {
