@@ -4,16 +4,16 @@ class ChatMessage {
   final String message;
   final DateTime timestamp;
   final String? recipient; // Optional, für Flüsternachrichten
-  final String? hideoutId; // Optional, für Raum-Identifizierung
   final bool isSystem; // Flag für Systemnachrichten
+  final bool isDocument; // Kennzeichnet Dokument-Mitteilungen
 
   ChatMessage({
     required this.username,
     required this.message,
     required this.timestamp,
     this.recipient,
-    this.hideoutId,
     this.isSystem = false,
+    this.isDocument = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -22,8 +22,8 @@ class ChatMessage {
       'message': message,
       'timestamp': timestamp.toIso8601String(),
       if (recipient != null) 'recipient': recipient,
-      if (hideoutId != null) 'hideoutId': hideoutId,
       if (isSystem) 'isSystem': true,
+      if (isDocument) 'isDocument': true,
     };
   }
 
@@ -33,8 +33,34 @@ class ChatMessage {
       message: json['message'] ?? '',
       timestamp: DateTime.parse(json['timestamp']),
       recipient: json['recipient'],
-      hideoutId: json['hideoutId'],
       isSystem: json['isSystem'] ?? false,
+      isDocument: json['isDocument'] ?? false,
     );
+  }
+
+  // Factory-Methode zum Erstellen aus Firestore-Daten
+  factory ChatMessage.fromMap(Map<String, dynamic> data) {
+    return ChatMessage(
+      username: data['username'] ?? 'Unbekannt',
+      message: data['message'] ?? '',
+      timestamp: data['timestamp'] != null 
+          ? DateTime.parse(data['timestamp']) 
+          : DateTime.now(),
+      recipient: data['recipient'],
+      isSystem: data['isSystem'] ?? false,
+      isDocument: data['isDocument'] ?? false,
+    );
+  }
+
+  // Umwandlung in Map für Firestore
+  Map<String, dynamic> toMap() {
+    return {
+      'username': username,
+      'message': message,
+      'timestamp': timestamp.toIso8601String(),
+      if (recipient != null) 'recipient': recipient,
+      if (isSystem) 'isSystem': true,
+      if (isDocument) 'isDocument': true,
+    };
   }
 }

@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:escapeberlin/backend/types/chatmessage.dart';
-import 'package:escapeberlin/backend/types/player.dart';
 import 'package:escapeberlin/backend/types/role.dart';
 import 'package:escapeberlin/backend/types/roundobjective.dart';
-import 'package:escapeberlin/frontend/widgets/chat/inventory.dart';
+import 'package:escapeberlin/frontend/widgets/chat/inventory_dialog.dart';
+import 'package:escapeberlin/frontend/widgets/chat/player_list_dialog.dart';
+import 'package:escapeberlin/frontend/widgets/chat/round_objective_dialog.dart';
 import 'package:escapeberlin/frontend/widgets/chat/shared_documents_view.dart';
 import 'package:escapeberlin/globals.dart';
 import 'package:flutter/material.dart';
@@ -25,8 +25,7 @@ class _ChatPageState extends State<ChatPage> {
   String? _currentHideout;
   String? _selectedRecipient;
   List<String> _players = [];
-  bool _isLoadingPlayers = true;
-
+  
   // Runden-Variablen
   int _currentRound = 1;
   RoundObjective? _currentObjective;
@@ -34,6 +33,9 @@ class _ChatPageState extends State<ChatPage> {
   Timer? _countdownTimer;
   StreamSubscription? _roundSubscription;
   StreamSubscription? _endTimeSubscription;
+
+  // Zustandsvariablen für das UI
+  bool _isObjectiveExpanded = false;
 
   @override
   void initState() {
@@ -44,90 +46,66 @@ class _ChatPageState extends State<ChatPage> {
     chatProvider.setHideout(_currentHideout!);
     _setupChatListener();
     _loadPlayers();
-
-    // Initialisierung sofort ausführen
     _initializeRoundSystem();
 
-    // In der initState-Methode von _ChatPageState ergänzen:
-
-// Listener für Rundenübergänge
+    // Listener für Rundenübergänge
     roundProvider.roundStream.listen((newRound) {
-      // Dokument-Sharing-Status zurücksetzen
       documentProvider.resetForNewRound(newRound);
     });
   }
+  
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    
+    // Sicherstellen, dass Timer und Subscriptions ordnungsgemäß beendet werden
+    _countdownTimer?.cancel();
+    _roundSubscription?.cancel();
+    _endTimeSubscription?.cancel();
+    
+    super.dispose();
+  }
 
-// Neue Methode zur Initialisierung des Rundensystems
   void _initializeRoundSystem() {
     if (_currentHideout != null) {
-      print("Initialisiere Rundensystem für Hideout: $_currentHideout");
-
-      // Timer-Stream sofort abonnieren
       _endTimeSubscription = roundProvider.roundEndTimeStream.listen((endTime) {
-        print("Neue Endzeit erhalten: $endTime");
         _updateCountdown(endTime);
       });
 
-      // Rundenstream abonnieren
       _roundSubscription = roundProvider.roundStream.listen((round) {
-        print("Neue Runde erhalten: $round");
         setState(() {
           _currentRound = round;
           _currentObjective = documentRepo.getRoundObjective(round);
         });
       });
 
-      // Dann erst initializeRound aufrufen
-      roundProvider.initializeRound(_currentHideout!).then((_) {
-        print("Rundensystem initialisiert");
-        // Force-Update des Timers durch direkte Abfrage
-        final currentEndTime = DateTime.fromMillisecondsSinceEpoch(
-            FirebaseFirestore.instance
-                    .collection('hideouts')
-                    .doc(_currentHideout)
-                    .get()
-                    .then((snapshot) => snapshot.data()?['roundEndTime'] ?? 0)
-                as int);
-        if (currentEndTime != null) {
-          _updateCountdown(currentEndTime);
-        }
-      });
+      roundProvider.initializeRound(_currentHideout!);
     }
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    if (_countdownTimer != null) {
-      _countdownTimer!.cancel();
-      _countdownTimer = null;
-    }
-    if (_roundSubscription != null) {
-      _roundSubscription!.cancel();
-      _roundSubscription = null;
-    }
-    if (_endTimeSubscription != null) {
-      _endTimeSubscription!.cancel();
-      _endTimeSubscription = null;
-    }
-    super.dispose();
-  }
-
-  // Countdown-Timer aktualisieren
   void _updateCountdown(DateTime endTime) {
-    // Bestehenden Timer stoppen
+    // Bestehenden Timer abbrechen, falls vorhanden
     _countdownTimer?.cancel();
-
-    // Neuen Timer starten
+    
+    // Initiale Berechnung der verbleibenden Zeit
+    final remaining = endTime.difference(DateTime.now()).inSeconds;
+    setState(() {
+      _remainingSeconds = remaining > 0 ? remaining : 0;
+    });
+    
+    // Neuen Timer starten, der jede Sekunde aktualisiert
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final remaining = endTime.difference(DateTime.now()).inSeconds;
-
-      setState(() {
-        _remainingSeconds = remaining > 0 ? remaining : 0;
-      });
-
-      // Wenn der Timer abgelaufen ist, stoppen wir ihn
+      
+      // setState nur aufrufen, wenn Widget noch mounted ist
+      if (mounted) {
+        setState(() {
+          _remainingSeconds = remaining > 0 ? remaining : 0;
+        });
+      }
+      
+      // Timer stoppen, wenn Zeit abgelaufen
       if (_remainingSeconds <= 0) {
         timer.cancel();
       }
@@ -135,50 +113,10 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _loadPlayers() {
-    _isLoadingPlayers = true;
-
-    // Direkte Abfrage aus Firestore
-    if (_currentHideout != null) {
-      print("Versuche Spielerliste zu laden aus Hideout: $_currentHideout");
-
-      FirebaseFirestore.instance
-          .collection('hideouts')
-          .doc(_currentHideout)
-          .snapshots()
-          .listen((snapshot) {
-        if (!mounted) return;
-
-        if (snapshot.exists) {
-          try {
-            final List<dynamic> playersData = snapshot.data()?['players'] ?? [];
-            final playerNames =
-                playersData.map((player) => player['name'] as String).toList();
-
-            print("Spielerliste geladen: $playerNames");
-
-            setState(() {
-              _players = playerNames;
-              _isLoadingPlayers = false;
-            });
-          } catch (e) {
-            print("Fehler beim Laden der Spielerliste: $e");
-            setState(() {
-              _isLoadingPlayers = false;
-            });
-          }
-        } else {
-          print("Hideout existiert nicht");
-          setState(() {
-            _isLoadingPlayers = false;
-          });
-        }
-      }, onError: (error) {
-        print("Fehler beim Abrufen des Hideouts: $error");
-        setState(() {
-          _isLoadingPlayers = false;
-        });
-      });
-    }
+    communicationProvider.playerListStream.listen((playerList) {
+      setState(() => _players = playerList);
+    });
+    communicationProvider.listenToPlayerChanges(_currentHideout!);
   }
 
   void _setupChatListener() {
@@ -202,7 +140,6 @@ class _ChatPageState extends State<ChatPage> {
 
   void _sendMessage() {
     if (_messageController.text.trim().isNotEmpty) {
-      // Wenn ein Empfänger ausgewählt ist, sendWhisperMessage verwenden, sonst normale sendMessage
       if (_selectedRecipient != null) {
         chatProvider.sendWhisperMessage(
             _messageController.text.trim(), _selectedRecipient!);
@@ -213,235 +150,41 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  Widget _buildObjectiveDisplay() {
-  final minutes = _remainingSeconds ~/ 60;
-  final seconds = _remainingSeconds % 60;
-  final timeStr = '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-
-  // Farbe je nach verbleibender Zeit
-  Color timerColor;
-  if (_remainingSeconds > 30) {
-    timerColor = Colors.green;
-  } else if (_remainingSeconds > 10) {
-    timerColor = Colors.orange;
-  } else {
-    timerColor = Colors.red;
-  }
-
-  return AnimatedContainer(
-    duration: const Duration(milliseconds: 800),
-    curve: Curves.easeInOut,
-    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    decoration: BoxDecoration(
-      color: backgroundColor.withOpacity(0.2),
-      border: Border.all(color: Colors.amber),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: _currentObjective != null
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.flag, color: Colors.amber, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        'RUNDENZIEL (Runde $_currentRound)',
-                        style: TextStyle(
-                          color: Colors.amber,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Timer als Trailing-Element
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: backgroundColor.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: timerColor),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.timer,
-                          color: timerColor,
-                          size: 12,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          timeStr,
-                          style: TextStyle(
-                            color: timerColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _currentObjective?.description ?? 'Kein Ziel definiert',
-                style: TextStyle(
-                  color: foregroundColor,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          )
-        : const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
-              strokeWidth: 2,
-            ),
-          ),
-  );
-}
-
-  Widget _buildMessageInput() {
-    return Column(
-      children: [
-        // Debug-Info für Spielerliste
-        if (_isLoadingPlayers)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              "Lade Spielerliste...",
-              style: TextStyle(color: foregroundColor),
-            ),
-          ),
-
-        // Wenn keine Spieler geladen wurden oder die Liste leer ist
-        if (!_isLoadingPlayers && _players.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              "Keine anderen Spieler gefunden",
-              style: TextStyle(color: foregroundColor.withOpacity(0.7)),
-            ),
-          ),
-
-        // Dropdown für Empfängerauswahl
-        if (_players.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(left: 10, right: 10, bottom: 5),
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: foregroundColor.withOpacity(0.1),
-              border: Border.all(color: foregroundColor),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  "An: ",
-                  style: TextStyle(color: foregroundColor),
-                ),
-                Expanded(
-                  child: DropdownButton<String?>(
-                    dropdownColor: backgroundColor,
-                    underline: Container(),
-                    value: _selectedRecipient,
-                    hint: Text(
-                      "Alle",
-                      style: TextStyle(color: foregroundColor.withOpacity(0.7)),
-                    ),
-                    style: TextStyle(color: foregroundColor),
-                    items: [
-                      DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text(
-                          "Alle",
-                          style: TextStyle(color: foregroundColor),
-                        ),
-                      ),
-                      ..._players
-                          .where((player) => player != _currentUsername)
-                          .map((player) => DropdownMenuItem<String>(
-                                value: player,
-                                child: Text(
-                                  player,
-                                  style: TextStyle(color: foregroundColor),
-                                ),
-                              ))
-                          .toList(),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRecipient = value;
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-        // Nachrichteneingabe
-        Container(
-          margin: const EdgeInsets.all(10),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: foregroundColor.withOpacity(0.1),
-            border: Border.all(
-              color:
-                  _selectedRecipient != null ? Colors.purple : foregroundColor,
-            ),
-            borderRadius: BorderRadius.circular(25),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  style: TextStyle(color: foregroundColor),
-                  decoration: InputDecoration(
-                    hintText: _selectedRecipient != null
-                        ? "Flüstern an ${_selectedRecipient}..."
-                        : "Nachricht eingeben...",
-                    hintStyle: TextStyle(
-                      color: _selectedRecipient != null
-                          ? Colors.purple.withOpacity(0.7)
-                          : foregroundColor.withOpacity(0.5),
-                    ),
-                    border: InputBorder.none,
-                  ),
-                  onSubmitted: (_) => _sendMessage(),
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                  _selectedRecipient != null ? Icons.sms : Icons.send,
-                  color: _selectedRecipient != null
-                      ? Colors.purple
-                      : foregroundColor,
-                ),
-                onPressed: _sendMessage,
-              ),
-            ],
-          ),
-        ),
-      ],
+  void _showRoundObjectiveDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => RoundObjectiveDialog(
+        currentRound: _currentRound,
+        objective: _currentObjective,
+        remainingSeconds: _remainingSeconds,
+      ),
     );
   }
 
-  Widget _buildInventory() {
-    // Hole die Rolle des aktuellen Spielers (muss entsprechend implementiert sein)
-    Role playerRole = communicationProvider.currentPlayer?.role ?? Role.refugee;
+  void _showInventoryDialog() {
+    final playerRole = communicationProvider.currentPlayer?.role ?? Role.refugee;
+    showDialog(
+      context: context,
+      builder: (context) => InventoryDialog(
+        hideoutId: _currentHideout!, 
+        playerRole: playerRole,
+      ),
+    );
+  }
 
-    return InventoryWidget(
-      hideoutId: _currentHideout!,
-      playerRole: playerRole,
+  void _showPlayerListDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => PlayerListDialog(
+        players: _players,
+        currentUsername: _currentUsername!,
+        selectedRecipient: _selectedRecipient,
+        onSelectRecipient: (recipient) {
+          setState(() {
+            _selectedRecipient = recipient;
+          });
+        },
+      ),
     );
   }
 
@@ -450,45 +193,43 @@ class _ChatPageState extends State<ChatPage> {
     final isWhisper = message.recipient != null;
     final isWhisperToMe = message.recipient == _currentUsername;
     final isWhisperFromMe = isWhisper && isCurrentUser;
+    final isSystem = message.isSystem;
 
     // Farbe je nach Nachrichtentyp
     Color messageColor;
-    if (isWhisperFromMe || isWhisperToMe) {
-      // Flüsternachricht - lila
+    if (isSystem) {
+      messageColor = Colors.amber.withOpacity(0.3);
+    } else if (isWhisperFromMe || isWhisperToMe) {
       messageColor = Colors.purple;
     } else if (isCurrentUser) {
-      // Eigene Nachricht
       messageColor = foregroundColor;
     } else {
-      // Fremde Nachricht
       messageColor = foregroundColor.withOpacity(0.3);
     }
 
     return Align(
-      alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isSystem ? Alignment.center : (isCurrentUser ? Alignment.centerRight : Alignment.centerLeft),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.all(10),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.7,
+          maxWidth: isSystem ? double.infinity : MediaQuery.of(context).size.width * 0.7,
         ),
         decoration: BoxDecoration(
           color: messageColor,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: isSystem ? CrossAxisAlignment.center : CrossAxisAlignment.start,
           children: [
-            Row(
+            if (!isSystem) Row(
               children: [
                 Expanded(
                   child: Text(
                     message.username,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isCurrentUser || isWhisper
-                          ? backgroundColor
-                          : foregroundColor,
+                      color: isCurrentUser || isWhisper ? backgroundColor : foregroundColor,
                     ),
                   ),
                 ),
@@ -500,7 +241,7 @@ class _ChatPageState extends State<ChatPage> {
                   ),
               ],
             ),
-            if (isWhisper)
+            if (isWhisper && !isSystem)
               Text(
                 isWhisperFromMe ? "An: ${message.recipient}" : "Privat",
                 style: TextStyle(
@@ -509,23 +250,22 @@ class _ChatPageState extends State<ChatPage> {
                   color: backgroundColor.withOpacity(0.8),
                 ),
               ),
-            const SizedBox(height: 5),
+            if (!isSystem) const SizedBox(height: 5),
             Text(
               message.message,
               style: TextStyle(
-                color: isCurrentUser || isWhisper
-                    ? backgroundColor
-                    : foregroundColor,
+                color: isSystem ? foregroundColor : (isCurrentUser || isWhisper ? backgroundColor : foregroundColor),
+                fontStyle: isSystem ? FontStyle.italic : FontStyle.normal,
+                fontWeight: isSystem ? FontWeight.w500 : FontWeight.normal,
               ),
+              textAlign: isSystem ? TextAlign.center : TextAlign.left,
             ),
-            const SizedBox(height: 3),
-            Text(
+            if (!isSystem) const SizedBox(height: 3),
+            if (!isSystem) Text(
               DateFormat('HH:mm').format(message.timestamp),
               style: TextStyle(
                 fontSize: 10,
-                color: (isCurrentUser || isWhisper)
-                    ? backgroundColor.withOpacity(0.7)
-                    : foregroundColor.withOpacity(0.7),
+                color: (isCurrentUser || isWhisper) ? backgroundColor.withOpacity(0.7) : foregroundColor.withOpacity(0.7),
               ),
               textAlign: TextAlign.right,
             ),
@@ -534,8 +274,6 @@ class _ChatPageState extends State<ChatPage> {
       ),
     );
   }
-
-  
 
   @override
   Widget build(BuildContext context) {
@@ -547,78 +285,253 @@ class _ChatPageState extends State<ChatPage> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.lock_outline,
-              color: foregroundColor,
-            ),
-            const SizedBox(width: 10),
+            Icon(Icons.lock_outline, color: foregroundColor),
+            const SizedBox(width: 8),
             Text(
-              "VERSCHLÜSSELTE KOMMUNIKATION",
-              style: Theme.of(context).textTheme.bodyMedium,
+              "KOMMUNIKATOR",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: foregroundColor),
+        // Entferne den Inventar-Button aus der AppBar
       ),
       body: Column(
         children: [
-          _buildObjectiveDisplay(),
-          // Chat-Nachrichten
+          // Kompakter Header mit Timer und Rundenziel
+          _buildTimerWithObjective(),
+          
+          // Chat-Nachrichten - mehr Platz zuweisen
           Expanded(
+            flex: 3, // Mehr Platz für Nachrichten
             child: Container(
-              margin: const EdgeInsets.all(10),
+              margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
               decoration: BoxDecoration(
                 color: backgroundColor.withOpacity(0.8),
-                border: Border.all(color: foregroundColor, width: 2),
+                border: Border.all(color: foregroundColor, width: 1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: _messages.isEmpty
-                  ? Center(
-                      child: Text(
-                        "Keine Nachrichten",
-                        style:
-                            TextStyle(color: foregroundColor.withOpacity(0.7)),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(10),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final message = _messages[index];
-                        // Zeige nur Nachrichten an, die für alle oder für mich bestimmt sind
-                        if (message.recipient == null ||
-                            message.recipient == _currentUsername ||
-                            message.username == _currentUsername) {
-                          return _buildMessage(message);
-                        } else {
-                          return const SizedBox
-                              .shrink(); // Verstecke Flüsternachrichten für andere
-                        }
-                      },
+                ? Center(
+                    child: Text(
+                      "Keine Nachrichten",
+                      style: TextStyle(color: foregroundColor.withOpacity(0.7)),
                     ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      if (message.recipient == null ||
+                          message.recipient == _currentUsername ||
+                          message.username == _currentUsername ||
+                          message.isSystem) {
+                        return _buildMessage(message);
+                      } else {
+                        return const SizedBox.shrink();
+                      }
+                    },
+                  ),
             ),
           ),
 
-          // Geteilte Dokumente anzeigen
+          // Geteilte Dokumente anzeigen - kompakter
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10),
+            margin: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               color: backgroundColor.withOpacity(0.8),
-              border: Border.all(color: foregroundColor, width: 2),
-              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: foregroundColor, width: 1),
+              borderRadius: BorderRadius.circular(8),
             ),
-            height: 150, // Höhe anpassen je nach Bedarf
+            height: 80, // Weniger Höhe
             child: SharedDocumentsView(currentRound: _currentRound),
           ),
 
-          // Inventar
-          _buildInventory(),
+          // Nachrichteneingabe mit Flüster-Indikator
+          Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: foregroundColor.withOpacity(0.1),
+              border: Border.all(
+                color: _selectedRecipient != null ? Colors.purple : foregroundColor,
+                width: _selectedRecipient != null ? 2 : 1,
+              ),
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Row(
+              children: [
+                // Spielerliste-Button
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(),
+                  icon: Icon(
+                    Icons.people_alt_outlined,
+                    color: _selectedRecipient != null ? Colors.purple : foregroundColor,
+                    size: 20,
+                  ),
+                  onPressed: _showPlayerListDialog,
+                  tooltip: 'Spielerliste anzeigen',
+                ),
+                
+                SizedBox(width: 8),
 
-          // Nachrichteneingabe mit Empfängerauswahl
-          _buildMessageInput(),
+                // Inventar-Button - neu positioniert bei der Textzeile
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(),
+                  icon: Icon(
+                    Icons.inventory_2_outlined,
+                    color: foregroundColor,
+                    size: 20,
+                  ),
+                  onPressed: _showInventoryDialog,
+                  tooltip: 'Inventar öffnen',
+                ),
+                
+                SizedBox(width: 8),
+                
+                // Textfeld für Nachrichteneingabe
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    style: TextStyle(color: foregroundColor),
+                    decoration: InputDecoration(
+                      hintText: _selectedRecipient != null
+                          ? "An ${_selectedRecipient}..."
+                          : "Nachricht eingeben...",
+                      hintStyle: TextStyle(
+                        color: _selectedRecipient != null
+                            ? Colors.purple.withOpacity(0.7)
+                            : foregroundColor.withOpacity(0.5),
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                
+                // Senden-Button
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(),
+                  icon: Icon(
+                    _selectedRecipient != null ? Icons.send : Icons.send_outlined,
+                    color: _selectedRecipient != null ? Colors.purple : foregroundColor,
+                    size: 20,
+                  ),
+                  onPressed: _sendMessage,
+                  tooltip: _selectedRecipient != null ? 'Flüstern' : 'Senden',
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+  
+  // Neues Widget für kombinierten Timer und Rundenziel
+  Widget _buildTimerWithObjective() {
+    // Timer-Farbe basierend auf verbleibender Zeit
+    Color timerColor = _remainingSeconds > 30 
+      ? Colors.green 
+      : (_remainingSeconds > 10 ? Colors.orange : Colors.red);
+    
+    // Formatierte Zeit
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    final timeStr = '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    
+    return GestureDetector(
+      onTap: _showRoundObjectiveDialog, // Öffnet das Detail-Dialog beim Tippen
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        margin: EdgeInsets.fromLTRB(8, 4, 8, 4),
+        decoration: BoxDecoration(
+          color: backgroundColor.withOpacity(0.2),
+          border: Border.all(color: Colors.amber.withOpacity(0.7)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Rundenindikator
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "Runde $_currentRound",
+                    style: TextStyle(
+                      color: backgroundColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                
+                Spacer(),
+                
+                // Timer
+                Row(
+                  children: [
+                    Icon(Icons.timer, color: timerColor, size: 14),
+                    SizedBox(width: 4),
+                    Text(
+                      timeStr,
+                      style: TextStyle(
+                        color: timerColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                // Info-Icon für Rundenziel
+                SizedBox(width: 8),
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.amber,
+                  size: 16,
+                ),
+              ],
+            ),
+            
+            // Kompaktes Rundenziel
+            if (_currentObjective != null) ...[
+              SizedBox(height: 4),
+              Text(
+                _currentObjective!.title,
+                style: TextStyle(
+                  color: Colors.amber,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                _currentObjective!.description.split('.').first + '...', // Nur erster Satz
+                style: TextStyle(
+                  color: foregroundColor,
+                  fontSize: 11,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
