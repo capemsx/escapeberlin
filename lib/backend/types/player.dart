@@ -10,7 +10,7 @@ class Player {
     required this.id,
     required this.name,
     required this.hideoutId,
-    this.role = Role.refugee,
+    this.role = Role.coordinator,
   });
 
   void updateRole(Role newRole) {

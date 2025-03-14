@@ -26,6 +26,8 @@ Stream<List<String>> get playerListStream => _playerListController.stream;
     return;
   }
 
+
+
   Future<void> joinHideout(String hideoutId, String playerName) async {
     final playerId = _generatePlayerId();
     currentPlayer =
@@ -153,6 +155,45 @@ Stream<List<String>> get playerListStream => _playerListController.stream;
   void dispose() {
     _playerCountController.close();
   }
+
+  // Getter für die Liste der Player-Objekte
+Future<List<Player>> get players async {
+  final List<Player> playerList = [];
+  if (currentPlayer?.hideoutId == null) return playerList;
+  
+  try {
+    // Spielerliste aus dem Firestore holen
+    final hideoutDoc = await _firestore
+        .collection('hideouts')
+        .doc(currentPlayer!.hideoutId)
+        .get();
+    
+    if (hideoutDoc.exists && hideoutDoc.data() != null) {
+      final playersData = List<Map<String, dynamic>>.from(hideoutDoc.data()!['players'] ?? []);
+      
+      for (var playerData in playersData) {
+        final player = Player(
+          id: playerData['id'] ?? '',
+          name: playerData['name'] ?? '',
+          hideoutId: currentPlayer!.hideoutId,
+        );
+        
+        // Rolle setzen wenn verfügbar
+        if (playerData.containsKey('role')) {
+          player.updateRole(Role.values.firstWhere(
+            (r) => r.name == playerData['role'], 
+            orElse: () => Role.coordinator
+          ));
+        }
+        
+        playerList.add(player);
+      }
+    }
+    return playerList;
+  } catch (e) {
+    print("Fehler beim Laden der Spieler: $e");
+    return playerList;
+  }
+}
 }
 
-final communicationProvider = CommunicationProvider();

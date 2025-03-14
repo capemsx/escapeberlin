@@ -1,5 +1,4 @@
 enum Role {
-  refugee,
   spy,
   smuggler,
   coordinator,
@@ -9,8 +8,6 @@ enum Role {
 extension RoleExtension on Role {
   String get name {
     switch (this) {
-      case Role.refugee:
-        return 'Flüchtling';
       case Role.spy:
         return 'Spitzel';
       case Role.smuggler:

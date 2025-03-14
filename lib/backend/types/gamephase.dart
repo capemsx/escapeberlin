@@ -1,4 +1,5 @@
 enum GamePhase {
   playing,
-  voting
+  voting,
+  finished
 }

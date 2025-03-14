@@ -322,7 +322,7 @@ class _VotingPanelState extends State<VotingPanel> with SingleTickerProviderStat
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Du hast für $playerName gestimmt. Der Spieler mit den meisten Stimmen wird am Ende ausgeschlossen!",
+              "Du hast für $playerName gestimmt.",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             backgroundColor: Colors.green,
@@ -475,7 +475,7 @@ class _VotingPanelState extends State<VotingPanel> with SingleTickerProviderStat
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                "Der Spieler mit den meisten Stimmen wird als Spitzel identifiziert und AUS DEM SPIEL AUSGESCHLOSSEN!",
+                                "Der Spieler mit den meisten Stimmen wird als Spitzel identifiziert und isoliert!",
                                 style: TextStyle(
                                   color: Colors.red,
                                   fontSize: 12,

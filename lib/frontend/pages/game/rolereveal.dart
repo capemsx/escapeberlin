@@ -52,7 +52,7 @@ class RoleRevealState extends State<RoleRevealPage> {
                   scale: roleVisible ? 1 : 0,
                   duration: Duration(milliseconds: 2500),
                   curve: Curves.easeOut,
-                  child: Text(communicationProvider.currentPlayer!.role.name, style: TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.w800),)),
+                  child: Text(communicationProvider.currentPlayer!.role.name, style: TextStyle(fontSize: 40, color: communicationProvider.currentPlayer!.role == Role.spy ? Colors.red : Colors.white, fontWeight: FontWeight.w800),)),
               ),
               const SizedBox(height: 10),
               AnimatedOpacity(
@@ -77,19 +77,17 @@ class RoleRevealState extends State<RoleRevealPage> {
   }
 
   String _getRoleDescription(Role role) {
-    switch (role) {
-      case Role.refugee:
-        return 'Du bist ein Flüchtling. Deine Aufgabe ist es, sicher zu entkommen.';
-      case Role.spy:
-        return 'Du bist ein Spitzel. Deine Aufgabe ist es, Informationen zu sammeln.';
-      case Role.smuggler:
-        return 'Du bist ein Schmuggler. Deine Aufgabe ist es, Gegenstände zu transportieren.';
-      case Role.coordinator:
-        return 'Du bist ein Koordinator. Deine Aufgabe ist es, das Team zu leiten.';
-      case Role.counterfeiter:
-        return 'Du bist ein Fälscher. Deine Aufgabe ist es, Dokumente zu fälschen.';
-      case Role.escapeHelper:
-        return 'Du bist ein Fluchthelfer. Deine Aufgabe ist es, anderen zu helfen zu entkommen.';
-    }
+  switch (role) {
+    case Role.spy:
+      return 'Als Spitzel der Staatssicherheit bist du in die Gruppe eingeschleust worden. Deine Aufgabe ist es, alle Fluchtpläne zu sabotieren und Informationen zu sammeln, ohne aufzufallen. Achte genau darauf, was die anderen planen und versuche, ihr Vertrauen zu gewinnen.';
+    case Role.smuggler:
+      return 'Als Schmuggler kennst du die geheimen Wege zwischen Ost und West. Deine Kontakte ermöglichen es dir, wichtige Gegenstände über die Grenze zu bringen - von Werkzeugen bis zu Westgeld. Dein Wissen über versteckte Routen ist entscheidend für den Erfolg der Flucht.';
+    case Role.coordinator:
+      return 'Als Koordinator bist du das Herzstück der Gruppe. Du musst den Überblick behalten, Informationen zusammenführen und die richtigen Entscheidungen treffen. Deine Führung und strategisches Denken werden darüber entscheiden, ob die Flucht gelingt oder scheitert.';
+    case Role.counterfeiter:
+      return 'Als Fälscher ist deine Kunstfertigkeit unersetzlich. Mit ruhiger Hand und Auge fürs Detail stellst du die gefälschten Ausweise, Visa und Passierscheine her, die für das Überschreiten der Grenze notwendig sind. Ohne deine Dokumente kommt niemand weit.';
+    case Role.escapeHelper:
+      return 'Als Fluchthelfer riskierst du alles für die Freiheit anderer. Du kennst die Schwachstellen der Grenzanlagen, hast Kontakte bei den Grenztruppen und weißt, wo und wann eine Flucht am erfolgversprechendsten ist. Deine Erfahrung kann Leben retten oder kosten.';
   }
+}
 }

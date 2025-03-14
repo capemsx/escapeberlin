@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:escapeberlin/backend/types/gamephase.dart';
+import 'package:escapeberlin/backend/types/role.dart';
 import 'package:escapeberlin/backend/types/vote.dart';
 import 'package:escapeberlin/globals.dart';
 import 'package:flutter/foundation.dart';
@@ -20,11 +21,12 @@ class VotingProvider extends ChangeNotifier {
   VotingProvider._internal();
   
   // Status-Variablen
-  bool _isVotingActive = false;
-  DateTime? _votingEndTime;
-  String? _currentVote;
-  String? _shadowBannedPlayer;
-  List<VoteResult> _voteResults = [];
+bool _isVotingActive = false;
+DateTime? _votingEndTime;
+String? _currentVote;
+String? _shadowBannedPlayer;
+List<VoteResult> _voteResults = [];
+List<String> _eliminatedPlayers = []; // Diese Zeile hinzufügen
   
   // Getter
   bool get isVotingActive => _isVotingActive;
@@ -179,6 +181,36 @@ class VotingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+// Prüft, ob der Spitzel ausgeschlossen wurde
+Future<bool> wasSpyEliminated() async {
+  try {
+    // Spielerliste holen
+    final players = await communicationProvider.players;
+    
+    // Laden der aktuellen eliminatedPlayers Liste
+    final hideoutId = chatProvider.getHideout();
+    final hideoutDoc = await _firestore.collection('hideouts').doc(hideoutId).get();
+    
+    if (hideoutDoc.exists && hideoutDoc.data() != null) {
+      final data = hideoutDoc.data()!;
+      if (data.containsKey('eliminatedPlayers') && data['eliminatedPlayers'] is List) {
+        _eliminatedPlayers = List<String>.from(data['eliminatedPlayers']);
+      }
+    }
+    
+    // Suche nach einem ausgeschlossenen Spieler mit Rolle "Spy"
+    for (var player in players) {
+      if (player.role == Role.spy && _eliminatedPlayers.contains(player.name)) {
+        return true;
+      }
+    }
+    return false;
+  } catch (e) {
+    print("Fehler beim Überprüfen des Spy-Eliminierungsstatus: $e");
+    return false;
+  }
+}
+
   // Überarbeitete Methode zum Beenden der Abstimmung und Ausschließen des Spielers
   Future<void> endVoting(String hideoutId, int round) async {
     try {
@@ -277,7 +309,7 @@ class VotingProvider extends ChangeNotifier {
             
             // Systembenachrichtigung im Chat senden
             await chatProvider.sendSystemMessage(
-              "⚠️ ABSTIMMUNG BEENDET ⚠️\n${topVote.targetName} wurde mit ${topVote.voteCount} Stimmen als Spitzel identifiziert und aus dem Spiel ausgeschlossen!"
+              "⚠️ ABSTIMMUNG BEENDET ⚠️\n${topVote.targetName} wurde mit ${topVote.voteCount} Stimmen als Spitzel identifiziert und isoliert!"
             );
           }
         } catch (e) {

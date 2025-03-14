@@ -16,14 +16,15 @@ class IntroductionPage extends StatefulWidget {
 
 class IntroductionPageState extends State<IntroductionPage>  {
   int pageIndex = 0;
-  bool _isFinished = false;
   final List<String> monologue = [
-    "Berlin, 1984.\nDie Stadt ist durch die Mauer geteilt.",
-    "Eure Mission:\nFindet die geheimen Dokumente und flieht.",
-    "Die Kommunikation ist nur über einen verschlüsselten Messenger möglich.",
-    "Vorsicht, es gibt einen Spitzel in euren Reihen.",
-    "Viel Glück, ihr werdet es brauchen.",
-    ""
+  "Berlin, 1984.\nDie Stadt ist durch die Mauer geteilt. Der Kalte Krieg hält die geteilte Stadt in seinem Griff.",
+  "Eure Mission: Plant die Flucht aus der DDR in den Westen und identifiziert den Spitzel unter euch.",
+  "In mehreren Runden müsst ihr Treffen organisieren, Dokumente beschaffen, Routen planen und Westkontakte knüpfen.",
+  "Ihr erhaltet und teilt wichtige Dokumente über einen verschlüsselten Messenger.",
+  "Doch Vorsicht! Ein Stasi-Spitzel hat sich eingeschlichen und versucht, falsche Informationen zu streuen.",
+  "Prüft alle Dokumente auf Widersprüche – sie könnten auf den Verräter hinweisen.",
+  "Findet den Spitzel, bevor es zu spät ist. ",
+  ""
 ];
 
   
@@ -49,13 +50,13 @@ class IntroductionPageState extends State<IntroductionPage>  {
                   fontSize: 34,
                   color: foregroundColor,
                 ),
-                speed: const Duration(milliseconds: 75),
+                speed: const Duration(milliseconds: 65),
               ),
             ],
             totalRepeatCount: 1,
-            pause: const Duration(milliseconds: 1000),
-            displayFullTextOnTap: true,
-            stopPauseOnTap: true,
+            pause: const Duration(milliseconds: 750),
+            displayFullTextOnTap: false,
+            stopPauseOnTap: false,
             onFinished: () {
               setState(() {
                 gamePageIndex.value++;

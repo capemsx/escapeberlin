@@ -60,7 +60,7 @@ class LobbyPageState extends State<LobbyPage> {
     void _showPlayerJoinedNotification(String playerName) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$playerName ist der Lobby beigetreten'),
+        content: Text('$playerName ist dem Versteck beigetreten'),
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(8),
@@ -118,7 +118,7 @@ Widget build(BuildContext context) {
                         child: playerCounter(playerCount, 5))),
                 Spacer(),
                 Text(
-                  "EscapeBerlin",
+                  "Checkpoint Reiki",
                   style: Theme.of(context).textTheme.headlineLarge,
                   textAlign: TextAlign.center,
                 ),
