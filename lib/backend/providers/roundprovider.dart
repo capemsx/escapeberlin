@@ -169,45 +169,55 @@ GamePhase _parseGamePhase(String phase) {
   // Zur nächsten Runde wechseln
 Future<void> _advanceToNextRound(String hideoutId) async {
   try {
+    // Nur Host darf die Abstimmung beenden und Runde wechseln
+    if (!_isHost()) {
+      print("Nicht-Host versucht, zur nächsten Runde zu wechseln - ignoriert");
+      return;
+    }
+    
     // Abstimmungsergebnis auswerten
     await votingProvider.endVoting(hideoutId, _currentRound);
     
     // Prüfen, ob der Spitzel eliminiert wurde
     final spyEliminated = await votingProvider.wasSpyEliminated();
     
+    // Aktuelle Rundennummer aus Firestore lesen, um konsistent zu bleiben
+    final hideoutDoc = await _firestore.collection('hideouts').doc(hideoutId).get();
+    int currentRound = hideoutDoc.data()?['currentRound'] ?? 1;
+    
     // Spiel beenden, wenn Spy eliminiert oder Runde 4 erreicht wurde
-    if (spyEliminated || _currentRound >= 4) {
-      print("Spiel beendet nach Runde $_currentRound. Spitzel eliminiert: $spyEliminated");
-      
-      // Spiel-Ende-Status in Firestore setzen
+    if (spyEliminated || currentRound >= 5) {
+      print("Spiel beendet nach Runde $currentRound. Spitzel eliminiert: $spyEliminated");
       await _endGame(hideoutId);
-      
-      // Frühzeitig beenden, keine weitere Runde starten
       return;
     }
 
-    // Fortfahren mit nächster Runde
-    _currentRound++;
-    _currentPhase = GamePhase.playing;
-    _roundEndTime = DateTime.now().add(Duration(seconds: roundDuration));
+    // Neue Rundendaten berechnen
+    final newRound = currentRound + 1;
+    final newPhase = GamePhase.playing;
+    final newEndTime = DateTime.now().add(Duration(seconds: roundDuration));
 
-    print("Wechsel zu Runde $_currentRound");
+    print("Wechsel zu Runde $newRound (Host: ${communicationProvider.currentPlayer?.name})");
 
-    // In Firestore speichern
+    // Atomares Update in Firestore
     await _firestore.collection('hideouts').doc(hideoutId).update({
-      'currentRound': _currentRound,
+      'currentRound': newRound,
       'currentPhase': 'playing',
-      'roundEndTime': _roundEndTime!.millisecondsSinceEpoch,
+      'roundEndTime': newEndTime.millisecondsSinceEpoch,
     });
 
+    // Lokale Variablen erst NACH erfolgreicher Firestore-Aktualisierung setzen
+    _currentRound = newRound;
+    _currentPhase = newPhase;
+    _roundEndTime = newEndTime;
+    
     // Streams aktualisieren
     _roundController.add(_currentRound);
     _phaseController.add(_currentPhase);
     _roundEndTimeController.add(_roundEndTime!);
 
-    // Benachrichtigung im Chat
-    await chatProvider
-        .sendSystemMessage("Runde $_currentRound beginnt jetzt!");
+    // Benachrichtigung im Chat (nur Host sendet diese)
+    await chatProvider.sendSystemMessage("Runde $_currentRound beginnt jetzt!");
 
     // Timer starten
     _startRoundTimer(roundDuration);
@@ -310,11 +320,16 @@ Future<void> _endGame(String hideoutId) async {
     _roundTimer = null;
   }
 
-  // Überprüfen, ob der aktuelle Spieler der Host ist
   bool _isHost() {
-    // In einer echten Implementierung würde hier geprüft werden, ob der aktuelle Spieler der Host ist
-    return true;
+  // Verwende den lokalen Cache statt eines asynchronen Future-Aufrufs
+  final currentPlayer = communicationProvider.currentPlayer;
+  final String? hostName = communicationProvider.hostName;
+  
+  if (currentPlayer != null && hostName != null) {
+    return currentPlayer.name == hostName;
   }
+  return false;
+}
 
   // Aktuelles Hideout abrufen
   String _getCurrentHideoutId() {

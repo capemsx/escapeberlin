@@ -32,7 +32,7 @@ class LobbyPageState extends State<LobbyPage> {
       setState(() {
         playerCount = count;
       });
-      if (count >= 2) { //TODO: RESET TO 5
+      if (count >= 6) { //TODO: RESET TO 6
         startGame();
       }
     });
@@ -115,7 +115,7 @@ Widget build(BuildContext context) {
                     visible: username != null,
                     child: Align(
                         alignment: Alignment.topLeft,
-                        child: playerCounter(playerCount, 5))),
+                        child: playerCounter(playerCount, 6))),
                 Spacer(),
                 Text(
                   "Checkpoint Reiki",
@@ -303,7 +303,7 @@ void showCrossPlayDialog() async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Versteck ist voll (max. 5 Spieler)',
+          'Versteck ist voll (max. 6 Spieler)',
           style: TextStyle(color: backgroundColor),
         ),
         backgroundColor: foregroundColor,

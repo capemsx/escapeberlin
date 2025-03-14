@@ -88,6 +88,8 @@ class RoleRevealState extends State<RoleRevealPage> {
       return 'Als Fälscher ist deine Kunstfertigkeit unersetzlich. Mit ruhiger Hand und Auge fürs Detail stellst du die gefälschten Ausweise, Visa und Passierscheine her, die für das Überschreiten der Grenze notwendig sind. Ohne deine Dokumente kommt niemand weit.';
     case Role.escapeHelper:
       return 'Als Fluchthelfer riskierst du alles für die Freiheit anderer. Du kennst die Schwachstellen der Grenzanlagen, hast Kontakte bei den Grenztruppen und weißt, wo und wann eine Flucht am erfolgversprechendsten ist. Deine Erfahrung kann Leben retten oder kosten.';
+    case Role.informant:
+      return 'Als Informant verfügst du über ein weitreichendes Netzwerk von Kontakten in staatlichen Stellen. Deine Quellen liefern dir wertvolle Informationen über Wachpläne, Kontrollen und Sicherheitsmaßnahmen der Grenztruppen. Dein geheimes Wissen kann den entscheidenden Unterschied zwischen Erfolg und Verhaftung bedeuten.';
   }
 }
 }

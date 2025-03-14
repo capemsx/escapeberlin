@@ -13,16 +13,20 @@ class CommunicationProvider {
 Stream<List<String>> get playerListStream => _playerListController.stream;
 
   Player? currentPlayer;
+  String? hostName; // Hinzufügen der hostName-Eigenschaft
 
   Future<void> createHideout(String hideoutId, String playerName) async {
     final playerId = _generatePlayerId();
     currentPlayer =
         Player(id: playerId, name: playerName, hideoutId: hideoutId);
 
-    await _firestore.collection('hideouts').doc(hideoutId).set({
-      'playerCount': 1,
-      'players': [currentPlayer!.toJson()],
-    });
+    hostName = playerName;
+  
+  await _firestore.collection('hideouts').doc(hideoutId).set({
+    'playerCount': 1,
+    'players': [currentPlayer!.toJson()],
+    'hostName': playerName, // Speichere auch in Firestore
+  });
     return;
   }
 
@@ -36,10 +40,12 @@ Stream<List<String>> get playerListStream => _playerListController.stream;
     final hideoutDoc = _firestore.collection('hideouts').doc(hideoutId);
     final hideoutData = await hideoutDoc.get();
 
+    
+
     if (hideoutData.exists) {
       final players = List<Map<String, dynamic>>.from(hideoutData['players']);
       players.add(currentPlayer!.toJson());
-
+hostName = hideoutData['hostName'];
       await hideoutDoc.update({
         'playerCount': players.length,
         'players': players,
@@ -108,7 +114,7 @@ Stream<List<String>> get playerListStream => _playerListController.stream;
         await _firestore.collection('hideouts').doc(hideoutId).get();
     if (hideoutDoc.exists) {
       final playerCount = hideoutDoc.data()?['playerCount'] ?? 0;
-      return playerCount >= 5;
+      return playerCount >= 6;
     }
     return false;
   }

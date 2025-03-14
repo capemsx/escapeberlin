@@ -3,7 +3,8 @@ enum Role {
   smuggler,
   coordinator,
   counterfeiter,
-  escapeHelper
+  escapeHelper,
+  informant,
 }
 extension RoleExtension on Role {
   String get name {
@@ -18,6 +19,8 @@ extension RoleExtension on Role {
         return 'Fälscher';
       case Role.escapeHelper:
         return 'Fluchthelfer';
+      case Role.informant:
+        return 'Informant';
     }
   }
 }
