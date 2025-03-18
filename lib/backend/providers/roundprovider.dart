@@ -27,8 +27,8 @@ class RoundProvider {
   RoundProvider._internal();
 
   // Dauer einer Runde in Sekunden
-  static const int roundDuration = 30; // 2 Minuten
-  static const int votingDuration = 15; // 30 Sekunden
+  static const int roundDuration = 180; // 2 Minuten
+  static const int votingDuration = 45; // 30 Sekunden
 
   // Aktuelle Spielphase abrufen
   GamePhase getCurrentPhase() {

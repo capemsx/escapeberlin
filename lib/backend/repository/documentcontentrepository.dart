@@ -28,23 +28,62 @@ class DocumentContentRepository {
   }
 
   // Abrufen eines bestimmten Dokuments
-  GameDocument getDocumentById(String documentId) {
-    // Später würde hier ein Look-up in einer Datensammlung erfolgen
-    // Jetzt erstellen wir ein Platzhalter-Dokument
-
-    final parts = documentId.split('_');
-    final roleName = parts[0];
-    final round = parts.length > 2 ? int.tryParse(parts[2]) ?? 1 : 1;
-    final docNum = parts.length > 3 ? int.tryParse(parts[3]) ?? 1 : 1;
-
+  // Abrufen eines bestimmten Dokuments
+GameDocument getDocumentById(String documentId) {
+  // Dokument-ID parsen, um Rolle und Runde zu extrahieren
+  final parts = documentId.split('_');
+  if (parts.length < 3) {
+    // Ungültiges ID-Format
     return GameDocument(
       id: documentId,
-      title: 'Dokument $docNum für $roleName (Runde $round)',
-      content:
-          'Inhalt des Dokuments $docNum für $roleName in Runde $round wird später hinzugefügt.',
+      title: 'Ungültiges Dokument',
+      content: 'Die Dokument-ID hat ein ungültiges Format.',
+      roleRequirement: 'unknown',
+    );
+  }
+  
+  final roleName = parts[0];
+  final round = parts.length > 2 ? int.tryParse(parts[2]) ?? 1 : 1;
+  
+  // Rollenname in Role-Enum umwandeln
+Role? role;
+for (var r in Role.values) {
+  // Verwende toString() und extrahiere den Teil nach dem Punkt, um den technischen Enum-Namen zu bekommen
+  String enumName = r.toString().split('.').last;
+  if (enumName.toLowerCase() == roleName.toLowerCase()) {
+    role = r;
+    break;
+  }
+}
+  
+  if (role == null) {
+    // Unbekannte Rolle
+    return GameDocument(
+      id: documentId,
+      title: 'Unbekannte Rolle',
+      content: 'Die in der Dokument-ID angegebene Rolle existiert nicht.',
       roleRequirement: roleName,
     );
   }
+  
+  // Alle Dokumente für die Rolle und Runde abrufen
+  final documents = getDocumentsForRoleAndRound(role, round);
+  
+  // Dokument mit passender ID finden
+  for (var doc in documents) {
+    if (doc.id == documentId) {
+      return doc; // Dokument gefunden
+    }
+  }
+  
+  // Dokument nicht gefunden, Platzhalter zurückgeben
+  return GameDocument(
+    id: documentId,
+    title: 'Dokument nicht gefunden',
+    content: 'Ein Dokument mit der ID $documentId wurde nicht gefunden.',
+    roleRequirement: roleName,
+  );
+}
 
   RoundObjective getRoundObjective(int round) {
     final objectives = [
