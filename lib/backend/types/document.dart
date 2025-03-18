@@ -3,29 +3,13 @@ class GameDocument {
   final String title;
   final String content;
   final String roleRequirement;
+  final String sharedBy;  // Neues Feld für den teilenden Benutzer
 
   GameDocument({
     required this.id,
-    required this.title,
-    required this.content,
-    required this.roleRequirement,
+    this.title = '',
+    this.content = '',
+    this.roleRequirement = '',
+    this.sharedBy = '',  // Standardwert für Abwärtskompatibilität
   });
-
-  factory GameDocument.fromJson(Map<String, dynamic> json) {
-    return GameDocument(
-      id: json['id'] ?? '',
-      title: json['title'] ?? '',
-      content: json['content'] ?? '',
-      roleRequirement: json['roleRequirement'] ?? '',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'content': content,
-      'roleRequirement': roleRequirement,
-    };
-  }
 }

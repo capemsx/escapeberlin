@@ -619,56 +619,59 @@ class _VotingPanelState extends State<VotingPanel> with SingleTickerProviderStat
                                 (isCurrentUser ? Colors.grey.withOpacity(0.1) : Colors.transparent),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Row(
-                          children: [
-                            // Zeige unterschiedliches Icon basierend auf Status
-                            Icon(
-                              isSelected ? Icons.check_circle : 
-                              (isCurrentUser ? Icons.person : Icons.radio_button_unchecked),
-                              color: isSelected ? Colors.red : 
-                                    (isCurrentUser ? foregroundColor.withOpacity(0.5) : foregroundColor.withOpacity(0.7)),
-                              size: 20,
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                playerName + (isCurrentUser ? " (Du)" : ""),
-                                style: TextStyle(
-                                  color: isCurrentUser ? foregroundColor.withOpacity(0.7) : foregroundColor,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: 16,
-                                  fontStyle: isCurrentUser ? FontStyle.italic : FontStyle.normal,
+                        child: GestureDetector(
+                          onTap: () => _voteForPlayer(playerName),
+                          child: Row(
+                            children: [
+                              // Zeige unterschiedliches Icon basierend auf Status
+                              Icon(
+                                isSelected ? Icons.check_circle : 
+                                (isCurrentUser ? Icons.person : Icons.radio_button_unchecked),
+                                color: isSelected ? Colors.red : 
+                                      (isCurrentUser ? foregroundColor.withOpacity(0.5) : foregroundColor.withOpacity(0.7)),
+                                size: 20,
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  playerName + (isCurrentUser ? " (Du)" : ""),
+                                  style: TextStyle(
+                                    color: isCurrentUser ? foregroundColor.withOpacity(0.7) : foregroundColor,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: 16,
+                                    fontStyle: isCurrentUser ? FontStyle.italic : FontStyle.normal,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: voteCount > 0 
-                                    ? Colors.amber.withOpacity(0.3) 
-                                    : foregroundColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                "$voteCount ${voteCount == 1 ? 'Stimme' : 'Stimmen'}",
-                                style: TextStyle(
-                                  color: voteCount > 0 ? Colors.amber : foregroundColor.withOpacity(0.7),
-                                  fontSize: 12,
-                                  fontWeight: voteCount > 0 ? FontWeight.bold : FontWeight.normal,
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: voteCount > 0 
+                                      ? Colors.amber.withOpacity(0.3) 
+                                      : foregroundColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  "$voteCount ${voteCount == 1 ? 'Stimme' : 'Stimmen'}",
+                                  style: TextStyle(
+                                    color: voteCount > 0 ? Colors.amber : foregroundColor.withOpacity(0.7),
+                                    fontSize: 12,
+                                    fontWeight: voteCount > 0 ? FontWeight.bold : FontWeight.normal,
+                                  ),
                                 ),
                               ),
-                            ),
-                            // Für andere Spieler als den aktuellen: Abstimmungsbutton
-                            if (!isCurrentUser)
-                              IconButton(
-                                icon: Icon(
-                                  isSelected ? Icons.how_to_vote : Icons.how_to_vote_outlined,
-                                  color: isSelected ? Colors.red : foregroundColor.withOpacity(0.7),
+                              // Für andere Spieler als den aktuellen: Abstimmungsbutton
+                              if (!isCurrentUser)
+                                IconButton(
+                                  icon: Icon(
+                                    isSelected ? Icons.how_to_vote : Icons.how_to_vote_outlined,
+                                    color: isSelected ? Colors.red : foregroundColor.withOpacity(0.7),
+                                  ),
+                                  onPressed: () => _voteForPlayer(playerName),
+                                  tooltip: 'Für ${playerName} stimmen',
                                 ),
-                                onPressed: () => _voteForPlayer(playerName),
-                                tooltip: 'Für ${playerName} stimmen',
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ],

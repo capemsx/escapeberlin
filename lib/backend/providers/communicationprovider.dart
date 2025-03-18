@@ -73,6 +73,29 @@ hostName = hideoutData['hostName'];
     return;
   }
 
+  // Eine neue Methode hinzufügen, um zu prüfen, ob ein Spielername bereits existiert
+Future<bool> isUsernameAvailable(String hideoutId, String username) async {
+  try {
+    final hideoutDoc = await _firestore.collection('hideouts').doc(hideoutId).get();
+    
+    if (hideoutDoc.exists) {
+      final players = List<Map<String, dynamic>>.from(hideoutDoc['players']);
+      
+      // Überprüfe, ob ein Spieler mit diesem Namen bereits existiert
+      for (var player in players) {
+        if (player['name'].toString().toLowerCase() == username.toLowerCase()) {
+          return false; // Name wird bereits verwendet
+        }
+      }
+    }
+    
+    return true; // Name ist verfügbar
+  } catch (e) {
+    print('Fehler bei der Überprüfung des Benutzernamens: $e');
+    return false; // Bei Fehlern lieber vorsichtig sein und den Beitritt verhindern
+  }
+}
+
   Future<void> joinOrCreateHideout(String hideoutId, String playerName) async {
   final hideoutDoc = _firestore.collection('hideouts').doc(hideoutId);
   final hideoutData = await hideoutDoc.get();

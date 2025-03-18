@@ -60,7 +60,6 @@ Stream<List<GameDocument>> streamSharedDocumentsForRound(int round) {
       .collection('sharedDocuments')
       .where('round', isEqualTo: round)
       .snapshots()
-      // Füge distinctUntilChanged hinzu, um doppelte Events zu verhindern
       .map((snapshot) {
         final List<GameDocument> documents = snapshot.docs.map((doc) {
           final data = doc.data();
@@ -69,10 +68,11 @@ Stream<List<GameDocument>> streamSharedDocumentsForRound(int round) {
             title: data['title'] ?? '',
             content: data['content'] ?? '',
             roleRequirement: data['roleRequirement'] ?? '',
+            sharedBy: data['sharedBy'] ?? 'Unbekannt', // Benutzername extrahieren
           );
         }).toList();
         
-        // Sortiere die Liste, um eine konsistente Reihenfolge zu gewährleisten
+        // Sortiere die Liste für konsistente Anzeige
         documents.sort((a, b) => a.title.compareTo(b.title));
         return documents;
       });

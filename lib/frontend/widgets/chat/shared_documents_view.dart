@@ -116,7 +116,7 @@ class SharedDocumentsView extends StatelessWidget {
               ),
             ),
             Text(
-              "Quelle: ${document.roleRequirement}",
+              "Quelle: ${document.sharedBy}",
               style: TextStyle(
                 fontSize: 10,
                 fontStyle: FontStyle.italic,
@@ -274,7 +274,7 @@ class _DocumentViewerDialogState extends State<DocumentViewerDialog> {
         SizedBox(height: 8),
         // Quelle
         Text(
-          "Quelle: ${document.roleRequirement}",
+          "Quelle: ${document.sharedBy}",
           style: TextStyle(
             fontSize: 12,
             fontStyle: FontStyle.italic,

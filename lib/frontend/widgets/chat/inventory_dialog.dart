@@ -125,6 +125,7 @@ class _InventoryDialogState extends State<InventoryDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Dokument-Quelle im Header anzeigen
+          /*
           Row(
             children: [
               Icon(Icons.source_outlined, size: 16, color: foregroundColor),
@@ -140,7 +141,7 @@ class _InventoryDialogState extends State<InventoryDialog> {
             ],
           ),
           SizedBox(height: 4),
-          
+          */
           // Dokumenttitel
           Text(
             document.title,

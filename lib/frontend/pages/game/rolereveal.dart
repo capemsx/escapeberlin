@@ -30,7 +30,7 @@ class RoleRevealState extends State<RoleRevealPage> {
     setState(() {
       roleDescriptionVisible = true;
     });
-    await Future.delayed(Duration(seconds: 5));
+    await Future.delayed(Duration(seconds: 10));
     gamePageIndex.value++;
   }
 

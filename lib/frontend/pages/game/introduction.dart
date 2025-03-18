@@ -50,11 +50,11 @@ class IntroductionPageState extends State<IntroductionPage>  {
                   fontSize: 34,
                   color: foregroundColor,
                 ),
-                speed: const Duration(milliseconds: 65),
+                speed: const Duration(milliseconds: 75),
               ),
             ],
             totalRepeatCount: 1,
-            pause: const Duration(milliseconds: 750),
+            pause: const Duration(milliseconds: 1000),
             displayFullTextOnTap: false,
             stopPauseOnTap: false,
             onFinished: () {

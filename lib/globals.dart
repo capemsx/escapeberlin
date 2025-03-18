@@ -8,8 +8,8 @@ import 'package:escapeberlin/backend/repository/documentcontentrepository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:escapeberlin/backend/providers/votingprovider.dart';
 
-Color foregroundColor = Color.fromARGB(255, 44, 246, 51);
-Color backgroundColor = Color.fromARGB(255, 60, 60, 60);
+Color foregroundColor = Color(0xFF2CF633);
+Color backgroundColor = Color(0xFF3C3C3C);
 
 // Globale Anbieter
 final chatProvider = ChatProvider();

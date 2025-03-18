@@ -386,21 +386,39 @@ void showCrossPlayDialog() async {
                     ),
                   ),
                   onPressed: () async {
-                    final username = usernameController.text.trim();
-                    if (username.isNotEmpty) {
-                      chatProvider.setUsername(username);
-                      await communicationProvider.joinOrCreateHideout(
-                          sessionId, username);
-                      await communicationProvider.assignRoles(sessionId);
-                      communicationProvider.listenToPlayerCount(sessionId);
-                      setState(() {
-                        this.username = username;
-                        players.add(username); // Füge den eigenen Namen zur Spieler-Liste hinzu
-                      });
-                      usernameController.dispose();
-                      Navigator.of(context).pop();
-                    }
-                  },
+            final username = usernameController.text.trim();
+            if (username.isNotEmpty) {
+              // Prüfe, ob der Benutzername bereits existiert
+              final isAvailable = await communicationProvider.isUsernameAvailable(
+                sessionId, username);
+              
+              if (!isAvailable) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Dieser Codename wird bereits verwendet. Bitte wähle einen anderen.',
+                      style: TextStyle(color: backgroundColor),
+                    ),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              
+              chatProvider.setUsername(username);
+              await communicationProvider.joinOrCreateHideout(
+                  sessionId, username);
+              await communicationProvider.assignRoles(sessionId);
+              communicationProvider.listenToPlayerCount(sessionId);
+              setState(() {
+                this.username = username;
+                players.add(username);
+              });
+              usernameController.dispose();
+              Navigator.of(context).pop();
+            }
+          },
                   child: Text(
                     "BESTÄTIGEN",
                     style: TextStyle(color: backgroundColor),
